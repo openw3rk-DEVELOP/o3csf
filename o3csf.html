@@ -1,0 +1,214 @@
+<!-- 
+        _____ ___________ ______
+  ____ |__  // ____/ ___// ____/
+ / __ \ /_ </ /    \__ \/ /_    
+/ /_/ /__/ / /___ ___/ / __/Version 3.2
+\____/____/\____//____/_/       
+_______________________________________ 
+                               
+o3csf comes with ABSOLUTE NO WARRANTY!
+---------------------------------------
+Licensed under MIT-License
+Copyright (c) openw3rk INVENT
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<body style="background-color:lightgrey;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>o3csf File Compiler | LOCAL</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    input, button {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+    }
+
+   /* o3csfLOGO */
+   /* --------- */
+    .o3csfLOGO {
+      width: 310px; 
+      overflow: hidden;
+    }
+
+    .o3csfLOGO img {
+      width: 100%;
+      height: auto;
+    }
+  </style>
+  <div class="o3csfLOGO">
+    <img src="o3csf_logo.png" alt="o3csf Logo">
+  </div>
+</head>
+<body>
+  <h2>Compile / Decompile Files</h2>
+  <input type="file" id="fileInput" />
+  <br />
+  <input type="password" id="passwordInput" placeholder="Password" >
+  <br />
+  <button onclick="compileFile()">Compile (.o3scf)</button>
+  <button onclick="decompileFile()">Decompile</button>
+  <footer><h5><br>Copyright (c) openw3rk INVENT<br><br>o3csf Local WebApp | Version 3.2<br><br>
+  <font color=RED> o3csf comes with ABSOLUTE NO WARRANTY!</font></h5></footer>
+  <script>
+    let failedAttempts = 0;
+    let lockUntil = 0;
+
+    async function getKeyFromPassword(password, salt) {
+      const encoder = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+      return crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: salt,
+          iterations: 100000,
+          hash: "SHA-256",
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function compileFile() {
+      const fileInput = document.getElementById("fileInput");
+      const password = document.getElementById("passwordInput").value;
+      if (!fileInput.files.length || !password) return alert("Please select a file and enter a password.");
+
+      const file = fileInput.files[0];
+      const content = await file.arrayBuffer();
+      const encoder = new TextEncoder();
+
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await getKeyFromPassword(password, salt);
+
+      const originalName = file.name;
+
+      const metadata = JSON.stringify({
+        originalName: originalName,
+        password: password
+      });
+
+      const encryptedMetadata = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        encoder.encode(metadata)
+      );
+
+      const encryptedContent = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        content
+      );
+
+      const metaArray = new Uint8Array(encryptedMetadata);
+      const metaLength = new Uint16Array([metaArray.length]);
+
+      const blobParts = [
+        salt,
+        iv,
+        new Uint8Array(metaLength.buffer),
+        metaArray,
+        new Uint8Array(encryptedContent)
+      ];
+
+      const finalBlob = new Blob(blobParts, { type: "application/octet-stream" });
+      const outName = originalName + ".o3scf";
+      downloadBlob(finalBlob, outName);
+    }
+
+    async function decompileFile() {
+      const now = Date.now();
+      if (now < lockUntil) {
+        alert(`Too many failed attempts. Please wait ${(Math.ceil((lockUntil - now) / 1000))} seconds.`);
+        return;
+      }
+
+      const fileInput = document.getElementById("fileInput");
+      const password = document.getElementById("passwordInput").value;
+      if (!fileInput.files.length || !password) return alert("Please select a file and enter a password.");
+
+      const file = fileInput.files[0];
+      const buffer = await file.arrayBuffer();
+      const total = new Uint8Array(buffer);
+
+      const salt = total.slice(0, 16);
+      const iv = total.slice(16, 28);
+      const metaLengthArray = new Uint16Array(buffer.slice(28, 30));
+      const metaLen = metaLengthArray[0];
+      const metaEnc = total.slice(30, 30 + metaLen);
+      const contentEnc = total.slice(30 + metaLen);
+
+      const key = await getKeyFromPassword(password, salt);
+
+      try {
+        const metaDecrypted = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          metaEnc
+        );
+
+        const decoder = new TextDecoder();
+        const metadata = JSON.parse(decoder.decode(metaDecrypted));
+
+        if (metadata.password !== password) {
+          failedAttempts++;
+          if (failedAttempts >= 3) {
+            lockUntil = Date.now() + 10000;
+            alert("Incorrect password. Too many attempts. Wait 10 seconds.");
+          } else {
+            alert("Incorrect password.");
+          }
+          return;
+        }
+
+        failedAttempts = 0;
+
+        const contentDecrypted = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          contentEnc
+        );
+
+        const baseName = metadata.originalName.replace(/\.[^/.]+$/, "");
+        const extension = metadata.originalName.split('.').pop();
+        const outName = `${baseName}-${extension}-decompiled.${extension}`;
+
+        downloadBlob(new Blob([contentDecrypted], { type: "application/octet-stream" }), outName);
+      } catch (e) {
+        failedAttempts++;
+        if (failedAttempts >= 3) {
+          lockUntil = Date.now() + 10000;
+          alert("Error during decryption. Too many attempts. Wait 10 seconds.");
+        } else {
+          alert("Decryption failed. Possibly wrong password or corrupted file.");
+        }
+        console.error(e);
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
