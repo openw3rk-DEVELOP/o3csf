@@ -7,9 +7,9 @@ O3SCF File Encryptor WebApp
 
 DISCLAIMER
 ----------
->>> O3SCF COMES WITH ABSOLUTELY NO WARRANTY. <<<
->>> ANY LIABILITY IS EXPRESSLY DISCLAIMED.   <<<
->>> Copyright (c) openw3rk INVENT            <<<
+O3SCF COMES WITH ABSOLUTELY NO WARRANTY. 
+ANY LIABILITY IS EXPRESSLY DISCLAIMED.   
+Copyright (c) openw3rk INVENT            
 ------------------------------------------------------------ 
 
 DESCRIPTION
