@@ -1,16 +1,9 @@
 # o3csf
+General info:
+
 Compiles text files into encrypted, non-readable .o3scf format and decompiles them back with a password. In one local browser application.
 
-----------------------------
-O3SCF File Encryptor WebApp 
-----------------------------
 
-DISCLAIMER
-----------
-O3SCF COMES WITH ABSOLUTELY NO WARRANTY. 
-ANY LIABILITY IS EXPRESSLY DISCLAIMED.   
-Copyright (c) openw3rk INVENT            
------------------------------------------------------------- 
 
 DESCRIPTION
 -----------
@@ -88,8 +81,8 @@ DISCLAIMER & WARRANTY
 ----------------------
 O3SCF is open-source and free software.
 
->>> O3SCF COMES WITH ABSOLUTELY NO WARRANTY. <<<
->>> ANY LIABILITY IS EXPRESSLY DISCLAIMED.   <<< 
+O3SCF COMES WITH ABSOLUTELY NO WARRANTY. <br>
+ANY LIABILITY IS EXPRESSLY DISCLAIMED.   
 
 Use at your own risk. Do not rely on this software for
 sensitive or mission-critical applications.
@@ -100,4 +93,3 @@ LICENSE
 O3SCF is licensed under the MIT License.
 You are free to use, modify, and redistribute the software
 according to the terms of that license.
-
